@@ -3,45 +3,80 @@ public class Applicant implements Comparable<Applicant> { //this class might hav
     id, studentNumber, groupID, name, email could all be turned to constant variables
     BUT... maybe keep them this way to maintain editability? Will have to ask Chloe about this
      */
-    private char id;
-    private int groupID;
+    public static int numAttributes = 9; //number of attributes for each applicant
+
     private String firstName;
     private String lastName;
     private String email;
-    private int studentNumber; //might have to be a string instead: what if student number starts w/ 0?
+    private String studentNumber; //might have to be a string instead: what if student number starts w/ 0?
+    private String phoneNumber;
+    private char gender;
+    private char role;
+    private char status;
+    private int id;
+    private int rating;
+
     //TODO add whatever other fields are needed
 
-    Applicant(int groupID, String firstName, String lastName, int studentNumber, String email){
-        this.groupID = groupID;
+    public Applicant(String firstName, String lastName, char gender, String email, String phoneNumber, char role,  String studentNumber){
         this.firstName = firstName;
         this.lastName = lastName;
+        this.gender = gender;
         this.studentNumber = studentNumber;
         this.email = email;
+        this.phoneNumber = phoneNumber;
+        this.role = role;
     }
 
-    //temporary constructor before we figure out how group Ids are going to work
-    Applicant(String firstName, String lastName, int studentNumber, String email){
+    //this constructor is the same as the one above, but takes in gender and role as Strings
+    public Applicant(String firstName, String lastName, String gender, String studentNumber, String email, String phoneNumber, String role, String status, String rating,String id){
         this.firstName = firstName;
         this.lastName = lastName;
+        this.gender = gender.charAt(0);
         this.studentNumber = studentNumber;
         this.email = email;
+        this.phoneNumber = phoneNumber;
+        this.role = role.charAt(0);
+        this.status = status.charAt(0);
+        this.rating = Integer.valueOf(rating);
+        this.id = Integer.valueOf(id);
     }
 
-    public void createID(int id) {
-        this.id = (char) (id + 'A');
+    public String getFirstName() {
+        return firstName;
     }
 
-    public String getID() {
-        return groupID + "-" + id;
+    public String getLastName() {
+        return lastName;
     }
 
-    public String getName() {
-        return firstName + " " + lastName;
+    public String getEmail() {
+        return email;
     }
 
-    public int getGroupID() {
-        return groupID;
+    public String getStudentNumber() {
+        return studentNumber;
     }
+
+    public char getRole() {
+        return role;
+    }
+
+    public char getGender() {
+        return gender;
+    }
+
+    public char getStatus() { return status; }
+
+    public void setStatus(char status) { this.status = status;}
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+    public int getRating() {return rating;}
+    public void setRating(int rating) {this.rating = rating;}
+
+    public int getId() { return id; }
 
     /**
      * Default comparison method: comparing applicants by last name

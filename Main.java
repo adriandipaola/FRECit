@@ -6,32 +6,21 @@ import java.awt.event.FocusListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
-import java.awt.image.ColorModel;
-import java.awt.image.WritableRaster;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
-import java.awt.event.FocusEvent;
-import java.awt.event.FocusListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
+import java.util.TreeSet;
 import javax.swing.*;
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.awt.image.ColorModel;
-import java.awt.image.WritableRaster;
-import java.util.ArrayList;
 import javax.swing.border.LineBorder;
-import java.time.LocalTime;
 
 //maybe change this * to the actual required classes to import; apparently it's "bad practice"
 import org.apache.poi.*;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellReference;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import javax.swing.*;
@@ -46,11 +35,11 @@ public class Main {
     final static int WIDTH = 1024;
     final static int HEIGHT = 638;
 
-    static final java.awt.Color COOL_BLUE = new java.awt.Color(30, 162, 236);
+    static final java.awt.Color COOL_BLUE = new java.awt.Color(122, 30, 201);
 
     static final java.awt.Color COOL_YELLOW = new java.awt.Color(255, 219, 51);
 
-    static final java.awt.Color COOL_RED = new java.awt.Color(227, 58, 54);
+    static final java.awt.Color COOL_RED = new java.awt.Color(120, 101, 230);
     final static java.awt.Font largeTitleFont = new java.awt.Font("League Spartan", java.awt.Font.BOLD, 25);
     final static java.awt.Font smallTitleFont = new java.awt.Font("League Spartan", java.awt.Font.BOLD, 16);
 
@@ -59,73 +48,374 @@ public class Main {
 
     static String userName;
 
-    public static JPanel grid2 = new JPanel();
 
     public static ArrayList<MyPanel> allPanels = new ArrayList<>();
 
-    public static Collection<Applicant> getApplicantsFromExcel(String excelFile){
-        Collection<Applicant> applicants=new ArrayList<>();
-        String[]applicantData=new String[5]; //this array will be used to temporarily store each applicant's data
-        try{
-            //create input stream to Excel file
-            //this will need to be changed once SharePoint file storage is implemented
-            FileInputStream fis=new FileInputStream(excelFile);
-            //Create Workbook instance for xlsx/xls file input stream
-            Workbook workbook=new XSSFWorkbook(fis); //maybe check if file ends with ".xslx" or ".xls" or smthg else
+    public static int filteredAppsLength = 0;
 
-            Sheet sheet=workbook.getSheetAt(0);
-            //iterate through each row inside the sheet!
-            for(Row row:sheet){
-                //iterate through all the cells in a row now
-                Iterator<Cell> cellIterator=row.cellIterator();
-                while(cellIterator.hasNext()){
+    public static JPanel tablePane = new JPanel();
+    public static JPanel statusPane = new JPanel();
+    public static JPanel updateBtn = new JPanel();
+    public static JComboBox statusBox = new JComboBox();
+    public static JSlider slider = new JSlider();
 
-                    //Get the Cell object
-                    Cell cell=cellIterator.next();
-                    //get the column letter: we need this to figure out what data is in the column
-                    //since we likely will not use column AA or later, we can just get the char value of the column
-                    //TODO check if this shit returns in lower case, cause if it does it will destroy the code
-                    char cellColumn=CellReference.convertNumToColString(cell.getColumnIndex()).charAt(0);
-                    //now add the data into the applicant data array at the correct index
-                    applicantData[cellColumn-'A']=cell.getStringCellValue().trim();
-                }
-                //finally after all data is collected make an applicant object!
-                //TODO FIGURE OUT HOW GROUPS WORK!!!!
-                applicants.add(new Applicant(applicantData[0],applicantData[1],Integer.parseInt(applicantData[2]),applicantData[3]));
+    public static int id;
+    public static int totalHiredApps;
+    /**
+     *
+     * @param //gender 'M' for male or 'N' for non-male, 'B' for both
+     * @param //role 'F' for FREC, 'P' for Plant, 'E' for either
+     * @return
+     */
+
+
+    public static void createPanelGroups(FC[][] FCMembers) {
+        int[] groupValues = {0, 0, 0, 0, 0};
+        for (int i = 0; i < 5; i++) {
+            for (FC f : FCMembers[i]) {
+                groupValues[i] += f.getGenderValue();
             }
-        }catch(IOException e){ //maybe throw IOException instead? then catch FileNotFoundException
+            if (groupValues[i] == 3) {
+                //do something
+            }
+            else if (groupValues[i] < 2) {
+                //do something else
+            }
+        }
+
+
+    }
+
+
+
+    public static void updateStatus(int idNum, String newStatus, int cNum) {
+        //Write to excel,
+        //Re-update the table
+        int rNum = idNum - 5;
+        //int cNum = 14;
+
+        try {
+            FileInputStream fis = new FileInputStream("C:\\Users\\alexn\\Queen's University\\GROUP-FREC - General\\FREC-App-Info.xlsx");
+            Workbook wb = WorkbookFactory.create(fis);
+            Sheet s = wb.getSheet("Sheet1");
+            Row r = s.getRow(rNum);
+            Cell c = r.createCell(cNum);
+            if (cNum == 14) {
+                c.setCellValue(newStatus);
+            } else {
+                c.setCellValue(Integer.valueOf(newStatus));
+            }
+
+            FileOutputStream fos = new FileOutputStream("C:\\Users\\alexn\\Queen's University\\GROUP-FREC - General\\FREC-App-Info.xlsx");
+            wb.write(fos);
+            wb.close();
+        } catch (Exception e) {
+            System.out.println("Read exception");
             e.printStackTrace();
         }
-        return applicants;
+        System.out.println("Write complete");
+    }
+
+
+
+    public static void searchApp(String firstName, String lastName, Collection<Applicant> applicants) {
+        //Search by first and last name,
+        statusPane.removeAll();
+        char statusOf = 'a';
+        int ratingOf = 0;
+
+        //Search by
+        TreeSet<Applicant> filteredApps = new TreeSet<>();
+        for (Applicant a : applicants) {
+            if (firstName.equals(a.getFirstName().toLowerCase()) && lastName.equals(a.getLastName().toLowerCase())) {
+                filteredApps.add(a);
+                id = a.getId();
+                statusOf = a.getStatus();
+                ratingOf = a.getRating();
+
+            }
+        }
+
+        String[][] appsDisplay = applicantListToArray(filteredApps);
+        String columns[] = {"Name", "Last Name", "Gender","Email", "Phone #", "Student #", "Role", "Rating","Status"}; //ADD STATUS
+        JTable jt = new JTable(appsDisplay,columns);
+        jt.setDefaultEditor(Object.class, null);
+
+        statusPane.add(jt);
+        jt.setBounds(0, 0, WIDTH - 200, HEIGHT);
+        JScrollPane sp = new JScrollPane(jt);
+        sp.setPreferredSize(new Dimension(WIDTH - 250, HEIGHT-200));
+        statusPane.add(sp);
+        statusPane.setBackground(Color.white);
+        statusPane.setLayout(new FlowLayout());
+
+        statusPane.setBounds(0, 0, WIDTH - 200, HEIGHT);
+        System.out.println("infoSummaryDone");
+
+        JLabel stat = new JLabel("The status of the current applicant is: ");
+
+        String genders[]={"Not Hired", "Hired"};
+        statusBox.removeAll();
+        statusBox = new JComboBox(genders);
+
+        if(statusOf == 'H') {
+            statusBox.setSelectedIndex(1);
+        } else {
+            statusBox.setSelectedIndex(0);
+        }
+
+        statusBox.setSize(90, 20);
+
+        statusPane.add(stat);
+        statusPane.add(statusBox);
+
+
+        updateBtn.removeAll();
+        updateBtn.setPreferredSize(new Dimension(100, 50));
+        updateBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        updateBtn.setBackground(COOL_BLUE);
+        JLabel upd = new JLabel("Update");
+        upd.setForeground(Color.white);
+        updateBtn.setLayout(new GridBagLayout());
+        updateBtn.add(upd);
+        statusPane.add(updateBtn);
+
+
+        JLabel emptyBox = new JLabel("");
+        emptyBox.setPreferredSize(new Dimension(3000,0));
+        statusPane.add(emptyBox);
+
+        JLabel rateText = new JLabel("The rating of the curent applicant is: ");
+
+        slider.removeAll();
+        slider.setMinimum(0);
+        slider.setMaximum(5);
+        slider.setValue(ratingOf);
+        slider.setOrientation(JSlider.HORIZONTAL);
+        slider.setMajorTickSpacing(1);
+        slider.setPaintTicks(true);
+        slider.setPaintLabels(true);
+
+        statusPane.add(rateText);
+        statusPane.add(slider);
+
+
+        statusPane.repaint();
+        statusPane.revalidate();
+
+
+    }
+
+    public static void infoSummary(char gender, char role, char status, Collection<Applicant> applicants) {
+        tablePane.removeAll();
+
+        TreeSet<Applicant> filteredApps = new TreeSet<>();
+        for (Applicant a : applicants) {
+            if ((gender == 'B' || gender == a.getGender()) && (role == a.getRole() || role == 'B') && (status == a.getStatus() || status == 'E')) {
+                filteredApps.add(a);
+            }
+        }
+        String[][] appsDisplay = applicantListToArray(filteredApps);
+        String columns[] = {"Name", "Last Name", "Gender","Email", "Phone #", "Student #", "Role", "Rating","Status"};
+
+        JTable jt = new JTable(appsDisplay,columns);
+        jt.setDefaultEditor(Object.class, null);
+
+        //JScrollPane sp = new JScrollPane(jt);
+        //pane.add(sp);
+        tablePane.add(jt);
+        jt.setBounds(0, 0, WIDTH - 200, HEIGHT);
+        JScrollPane sp = new JScrollPane(jt);
+        sp.setPreferredSize(new Dimension(WIDTH - 250, HEIGHT-200));
+        tablePane.add(sp);
+        tablePane.setBackground(Color.white);
+        tablePane.setLayout(new FlowLayout());
+
+        tablePane.setBounds(0, 0, WIDTH - 200, HEIGHT);
+        System.out.println("infoSummaryDone");
+
+        int numApps = filteredAppsLength;
+        JLabel num = new JLabel("Showing " + numApps + " out of " + applicants.size() + " applicants");
+        tablePane.add(num);
+
+        tablePane.repaint();
+        tablePane.revalidate();
     }
 
 
     /**
-     * This method will create a new ApplicantGroup object and populate it with Applicant objects
-     *
-     * @param groupID       id of the group; no two groups can have the same id
-     *                      id will probably be the group's row in the Excel file?
-     * @param numApplicants number of applicants in the group
-     * @return new ApplicantGroup object containing the registered applicants
+     * Gives the value of a cell inside an Excel sheet given the row and column number.
+     * @param SheetName Name of the sheet being accessed
+     * @param rNum row number (starting at 0)
+     * @param cNum column number (starting at 0)
+     * @return cell data at rNum and cNum as a String
      */
-    public static ApplicantGroup addApplicantGroup(int groupID,int numApplicants){
-        Applicant[]newGroup=new Applicant[numApplicants];
-        for(int i=0;i<newGroup.length;i++){
-            //TODO FIGURE OUT HOW GROUPS WORK!!!! THIS METHOD DOES NOT DO ANYTHING RN
+    public static String readExcel(String SheetName, int rNum, int cNum) {
+        String data = "";
+        try {
+            FileInputStream fPath = new FileInputStream("C:\\Users\\alexn\\Queen's University\\GROUP-FREC - General\\FREC-App-Info.xlsx");//Put file path here, don't know how it will work with a shared file
+            Workbook wb = WorkbookFactory.create(fPath);
+            Sheet s = wb.getSheet(SheetName);
+            Row r = s.getRow(rNum);
+            Cell c = r.getCell(cNum);
+            if (c.getCellType() == CellType.NUMERIC) {
+                // If the cell contains a numeric value, convert it to a string
+                data = String.valueOf(c.getNumericCellValue());
+            } else {
+                // If the cell contains a non-numeric value, read it as a string directly
+                data = c.getStringCellValue();
+            }
+            return data;
+        } catch(NullPointerException e) {
+            return null;
+        } catch (Exception e) {
+            System.out.println("Read Exception catch");
+            e.printStackTrace();
+            return null;
         }
-        return new ApplicantGroup(groupID,newGroup);
     }
+
+    public static Collection<Applicant> getApplicantsFromExcel(){
+        totalHiredApps = 0;
+        Collection<Applicant> applicants=new ArrayList<>();
+        //this array will be used to temporarily store each applicant's data
+        String[] applicantData = new String[Applicant.numAttributes+1];
+        int row = 1;
+        while (readExcel("Sheet1", row, 0) != null) {
+            //first name, last name, gender, studentNumber, email, phone number, role
+            applicantData[0] = readExcel("Sheet1", row, 6);
+            applicantData[1] = readExcel("Sheet1", row, 7);
+            applicantData[2] = readExcel("Sheet1", row, 8);
+            applicantData[3] = readExcel("Sheet1", row, 10);
+            applicantData[4] = readExcel("Sheet1", row, 11);
+            applicantData[5] = readExcel("Sheet1", row, 12);
+            applicantData[6] = readExcel("Sheet1", row, 13);
+            applicantData[7] = readExcel("Sheet1", row, 14);
+
+            //check status, if hired then increment the hired counter
+            if (applicantData[7].charAt(0) == 'H') {
+                totalHiredApps++;
+            }
+
+            applicantData[8] = readExcel("Sheet1", row, 0);
+
+            double temp = Double.valueOf(applicantData[8]);
+            String newValue = Integer.toString((int)temp);
+
+            applicantData[9] = readExcel("Sheet1", row, 15);
+            temp = Double.valueOf(applicantData[9]);
+            String newValue2 = Integer.toString((int)temp);
+
+            //change "role" column to a readable variable
+            switch (applicantData[6]) {
+                case "Only FREC":
+                    applicantData[6] = "F";
+                    break;
+                case "Only Plant":
+                    applicantData[6] = "P";
+                    break;
+                default:
+                    applicantData[6] = "B";
+                    break;
+            }
+
+            //finally after all data is collected make an applicant object!
+            applicants.add(new Applicant(applicantData[0], applicantData[1], applicantData[2], applicantData[3], applicantData[4], applicantData[5], applicantData[6], applicantData[7], newValue2, newValue));
+            row++;
+        }
+
+
+        System.out.println("getApplicantsFromExcel Method finished");
+        return applicants;
+    }
+
+    public static String[][] applicantListToArray(Collection<Applicant> applicants) {
+        String[][] appsToString = new String[applicants.size()][Applicant.numAttributes];
+        int i = 0;
+        for (Applicant a : applicants) {
+            appsToString[i][0] = a.getFirstName();
+            appsToString[i][1] = a.getLastName();
+            appsToString[i][2] = "" + a.getGender();
+            appsToString[i][3] = a.getEmail();
+            appsToString[i][4] = a.getPhoneNumber();
+            appsToString[i][5] = a.getStudentNumber();
+            appsToString[i][6] = "" + a.getRole();
+            appsToString[i][7] = "" + a.getRating();
+            appsToString[i][8] = "" + a.getStatus();
+            i++;
+        }
+        filteredAppsLength = appsToString.length;
+        System.out.println("applicantListToArray finished");
+        return appsToString;
+    }
+
+    public static ImageIcon scaleImage(ImageIcon icon, int width, int height)//for scaling the image
+    {
+        int newWidth = icon.getIconWidth();//sets the icon width to the
+        int newHeight = icon.getIconHeight();
+
+        if(icon.getIconWidth() > width)//changes width to desired width
+        {
+            newWidth = width;
+            newHeight = (newWidth * icon.getIconHeight()) / icon.getIconWidth();
+        }
+
+        if(newHeight > height)//changes height to desired height
+        {
+            newHeight = height;
+            newWidth = (icon.getIconWidth() * newHeight) / icon.getIconHeight();
+        }
+        return new ImageIcon(icon.getImage().getScaledInstance(newWidth, newHeight, Image.SCALE_SMOOTH));//returns scaled image
+    }
+
+    public static ImageIcon removeBg (ImageIcon logo) {
+        BufferedImage bi = getBufferedImageFromIcon(logo);
+
+        for (int y = 0; y < bi.getHeight(); y++) {
+            for (int x = 0; x < bi.getWidth(); x++) {
+                int pixel = bi.getRGB(x, y);
+                Color ogColour = new Color(pixel, true);
+                if (ogColour.getRed() == 0 && ogColour.getGreen() == 0 && ogColour.getBlue() == 0) {
+                    ogColour = new Color(COOL_BLUE.getRGB());
+                    bi.setRGB(x, y, ogColour.getRGB());
+                }
+            }
+        }
+
+        logo = new ImageIcon(bi);
+
+        return logo;
+    }
+
+    public static BufferedImage getBufferedImageFromIcon(Icon icon) {
+        BufferedImage buffer = new BufferedImage(icon.getIconWidth(), icon.getIconHeight(), BufferedImage.TYPE_INT_ARGB);
+        Graphics g = buffer.getGraphics();
+        icon.paintIcon(new JLabel(), g, 0, 0);
+        g.dispose();
+        return buffer;
+    }
+
 
     //Login page
     public static void main(String[] args) {
-        //Start frontend code here.
+        ArrayList<Applicant> applicants = new ArrayList<>(getApplicantsFromExcel());
 
+        //panel4 = infoSummary('M', 'F', applicants);
+        ArrayList<JComponent> frameElements5 = new ArrayList<>();
+        frameElements5.add(tablePane);
+        //panel4.setVisible(true);
+
+        //Start frontend code here.
         //Add ALL MyFrame components to frameElements array list. Make sure to set bounds or define layout!
         ArrayList<JComponent> frameElements1 = new ArrayList<>();
         ArrayList<JComponent> frameElements2 = new ArrayList<>();
         ArrayList<JComponent> frameElements3 = new ArrayList<>();
         ArrayList<JComponent> frameElements4 = new ArrayList<>();
+        frameElements4.add(statusPane);
+
         ArrayList<JComponent> menuElements = new ArrayList<>();
+
+
 
         //MAIN JFRAME
         JFrame frame = new JFrame("FRECit");
@@ -159,23 +449,25 @@ public class Main {
         home.setBackground(COOL_BLUE);
         menuElements.add(home);
 
-        JLabel houseDisplay = new JLabel();//container for the image
-        Dimension size = houseDisplay.getPreferredSize();
-        houseDisplay.setBounds(24, 12, size.width, size.height);
+//        JLabel houseDisplay = new JLabel();//container for the image
+//        Dimension size = houseDisplay.getPreferredSize();
+//        //houseDisplay.setBackground(COOL_BLUE);
+//        houseDisplay.setBounds(24, 12, size.width, size.height);
         home.setName("HOME");
         home.setLayout(null);
-        home.add(houseDisplay);
+        //home.add(houseDisplay);
+        home.setBackground(COOL_BLUE);
 
         red1.setBackground(COOL_RED);
         red1.setBounds(0, 4, 6, 42);
         home.add(red1);
 
-        JLabel homeText = new JLabel("Home");
+        JLabel homeText = new JLabel("Apps");
         homeText.setForeground(java.awt.Color.WHITE);
         homeText.setFont(smallTitleFont);
         JPanel homeTextBox = new JPanel();
         homeTextBox.setLayout(new GridBagLayout());
-        homeTextBox.setBounds(50, 0, 70, 50);
+        homeTextBox.setBounds(46, 0, 70, 50);
 
         homeTextBox.add(homeText);
         home.add(homeTextBox);
@@ -199,7 +491,7 @@ public class Main {
         faves.add(red2);
         red2.setVisible(false);
 
-        JLabel faveText = new JLabel("Favourites");
+        JLabel faveText = new JLabel("Filter Apps");
         faveText.setForeground(java.awt.Color.WHITE);
         faveText.setFont(smallTitleFont);
         JPanel faveTextBox = new JPanel();
@@ -226,7 +518,7 @@ public class Main {
         red3.setVisible(false);
 
 
-        JLabel settingText = new JLabel("Settings");
+        JLabel settingText = new JLabel("Schedule");
         settingText.setForeground(java.awt.Color.WHITE);
         settingText.setFont(smallTitleFont);
         JPanel settingTextBox = new JPanel();
@@ -247,7 +539,7 @@ public class Main {
 
 
         //FRAME ELEMENTS 2
-        JTextField searchBar = new JTextField("  enter a ski resort...");
+        JTextField searchBar = new JTextField("  first and last name...");
         searchBar.setForeground(COOL_BLUE);
         searchBar.setFont(largeTitleFont);
         searchBar.setBorder(new LineBorder(COOL_BLUE, 2));
@@ -263,7 +555,11 @@ public class Main {
         searchBtn.setBackground(COOL_BLUE);
         frameElements1.add(searchBtn);
 
+
+        ImageIcon searchIcon = removeBg(new ImageIcon("icons/search.png"));
         JLabel searchDisplay = new JLabel();//container for the image
+        searchIcon = scaleImage(searchIcon, 50, 50);//scales the image
+        searchDisplay.setIcon(searchIcon);//places it inside the label
         searchBtn.add(searchDisplay);
 
         Dimension size3 = searchDisplay.getPreferredSize();
@@ -272,7 +568,7 @@ public class Main {
 
         searchBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        JLabel resorts = new JLabel("Search resorts");
+        JLabel resorts = new JLabel("Search apps");
         resorts.setFont(largeTitleFont);
         resorts.setForeground(COOL_BLUE);
         JPanel resortPanel = new JPanel();
@@ -288,7 +584,7 @@ public class Main {
 
 
         //FAVE ONE NOW:
-        JLabel faveName = new JLabel("Favourites");
+        JLabel faveName = new JLabel("Filter Apps");
         faveName.setFont(largeTitleFont);
         faveName.setForeground(COOL_BLUE);
         JPanel favePanel = new JPanel();
@@ -302,16 +598,6 @@ public class Main {
         frameElements2.add(line3);
         frameElements2.add(favePanel);
 
-
-        grid2.setBackground(java.awt.Color.WHITE);
-        grid2.setLayout(new GridLayout(0, 1));
-
-        System.out.println(userName);
-
-
-        grid2.setBorder(new LineBorder(COOL_BLUE, 2));
-        grid2.setBounds(50, 75, WIDTH - 325, HEIGHT - 175);
-        frameElements2.add(grid2);
 
         JLabel resortName = new JLabel();
         resortName.setFont(largeTitleFont);
@@ -327,100 +613,14 @@ public class Main {
         frameElements4.add(line2);
         frameElements4.add(resortNamePanel);
 
-        JPanel grid = new JPanel();
-        grid.setLayout(new GridLayout(3, 2));
-        grid.setBackground(java.awt.Color.WHITE);
-        grid.setBounds(50, 75, WIDTH - 325, HEIGHT - 175);
-
-        JPanel snowStuff = new JPanel();
-        snowStuff.setLayout(new GridLayout(3, 1));
-
-        JPanel hourlyStuff = new JPanel();
-        hourlyStuff.setLayout(new GridLayout(5, 1));
-
-        JPanel dailyStuff = new JPanel();
-        dailyStuff.setLayout(new GridLayout(3, 1));
-
-
-        JLabel snow1 = new JLabel("Top snow depth: ");
-        JLabel snow2 = new JLabel("Fresh snowfall: ");
-        JLabel snow3 = new JLabel("Last snowfall date: ");
-        snowStuff.add(snow1);
-        snowStuff.add(snow2);
-        snowStuff.add(snow3);
-
-        JLabel hour1 = new JLabel("1");
-        JLabel hour2 = new JLabel("2");
-        JLabel hour3 = new JLabel("3");
-        JLabel hour4 = new JLabel("4");
-        JLabel hour5 = new JLabel("5");
-        hourlyStuff.add(hour1);
-        hourlyStuff.add(hour2);
-        hourlyStuff.add(hour3);
-        hourlyStuff.add(hour4);
-        hourlyStuff.add(hour5);
-
-
-        JLabel day1 = new JLabel("1");
-        JLabel day2 = new JLabel("2");
-        JLabel day3 = new JLabel("3");
-        dailyStuff.add(day1);
-        dailyStuff.add(day2);
-        dailyStuff.add(day3);
-
-
-        JLabel snow = new JLabel("  Snow conditions");
-        snow.setFont(largeTitleFont);
-        snow.setForeground(COOL_BLUE);
-
-        JLabel hourly = new JLabel("  Hourly weather");
-        hourly.setFont(largeTitleFont);
-        hourly.setForeground(COOL_BLUE);
-
-        JLabel daily = new JLabel("  Daily weather");
-        daily.setFont(largeTitleFont);
-        daily.setForeground(COOL_BLUE);
-
-        JPanel snowy = new JPanel();
-        snowy.setLayout(new GridLayout(1, 2));
-        snowy.setBorder(new LineBorder(COOL_BLUE, 2));
-        snowy.add(snow);
-        snowy.add(snowStuff);
-
-        JPanel hourWeather = new JPanel();
-        hourWeather.setLayout(new GridLayout(1, 2));
-        hourWeather.setBorder(new LineBorder(COOL_BLUE, 2));
-        hourWeather.add(hourly);
-        hourWeather.add(hourlyStuff);
-
-        JPanel dailyWeatherPane = new JPanel();
-        dailyWeatherPane.setLayout(new GridLayout(1, 2));
-        dailyWeatherPane.setBorder(new LineBorder(COOL_BLUE, 2));
-        dailyWeatherPane.add(daily);
-        dailyWeatherPane.add(dailyStuff);
-
-        grid.add(snowy);
-        grid.add(hourWeather);
-        grid.add(dailyWeatherPane);
-        frameElements4.add(grid);
-
-
-        String txt = "Favourite";
-        String utxt = String.join("\u0332", txt.split("", -1));
-        JLabel favourite = new JLabel(utxt);
-        favourite.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        favourite.setFont(smallTitleFont);
-        favourite.setForeground(COOL_BLUE);
-
         JPanel faveBox = new JPanel();
         faveBox.setBackground(java.awt.Color.WHITE);
         faveBox.setLayout(new GridBagLayout());
         faveBox.setBounds(650, 20, 100, 50);
-        faveBox.add(favourite);
         frameElements4.add(faveBox);
 
         //Settings stuff
-        JLabel settingLabel = new JLabel("Settings");
+        JLabel settingLabel = new JLabel("Schedule");
         settingLabel.setFont(largeTitleFont);
         settingLabel.setForeground(COOL_BLUE);
         JPanel settingPanel = new JPanel();
@@ -439,34 +639,215 @@ public class Main {
         logPane.setBackground(java.awt.Color.white);
         frameElements3.add(logPane);
 
+        String genders[]={"Any","Male", "NonMale"};
+        JComboBox genderCB = new JComboBox(genders);
+
+        JLabel genderText = new JLabel("What gender would you like to filter for? ");
+        genderText.setBounds(150, 120, genderText.getPreferredSize().width, genderText.getPreferredSize().height);
+        genderCB.setBounds(425, 120, 90, 20);
+        frameElements2.add(genderText);
+        frameElements2.add(genderCB);
+
+        String[] roles = {"Any", "Either", "FREC", "Plant"};
+        JLabel roleText = new JLabel("What role would you like to filter for? ");
+        roleText.setBounds(150, 200, roleText.getPreferredSize().width, roleText.getPreferredSize().height);
+        JComboBox rolesCB = new JComboBox(roles);
+        rolesCB.setBounds(425, 200,90,20);
+        frameElements2.add(roleText);
+        frameElements2.add(rolesCB);
+
+        String[] statuses = {"Any", "Hired", "Not Hired"};
+        JLabel statusText = new JLabel("What status would you like to filter for? ");
+        statusText.setBounds(150, 280, statusText.getPreferredSize().width, statusText.getPreferredSize().height);
+        JComboBox statusCB = new JComboBox(statuses);
+        statusCB.setBounds(425, 280,90,20);
+        frameElements2.add(statusText);
+        frameElements2.add(statusCB);
+
+        JPanel pan2btn = new JPanel();
+        pan2btn.setBounds(150, 440, 200, 75);
+        pan2btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        pan2btn.setBackground(COOL_BLUE);
+        JLabel pan2BtnText = new JLabel("Enter");
+        pan2BtnText.setForeground(Color.white);
+        pan2btn.setLayout(new GridBagLayout());
+        pan2btn.add(pan2BtnText);
+        frameElements2.add(pan2btn);
+
+        JLabel hiredCountText = new JLabel(totalHiredApps + " out of " + applicants.size() + " have been hired.");
+        //hiredCountText.setLocation(150, 360);
+        hiredCountText.setBounds(150, 360, hiredCountText.getPreferredSize().width + 50, hiredCountText.getPreferredSize().height);
+        frameElements2.add(hiredCountText);
 
         MyPanel leftPanel = new MyPanel(-1, 0, 0, 200, HEIGHT, menuElements);
         MyPanel panel1 = new MyPanel(0, 200, 0, WIDTH - 200, HEIGHT, frameElements1);
         MyPanel panel2 = new MyPanel(1, 200, 0, WIDTH - 200, HEIGHT, frameElements2);
         MyPanel panel3 = new MyPanel(2, 200, 0, WIDTH - 200, HEIGHT, frameElements3);
         MyPanel report = new MyPanel(3, 200, 0, WIDTH - 200, HEIGHT, frameElements4);
-
+        MyPanel panel5 = new MyPanel(4, 200, 0, WIDTH - 200, HEIGHT, frameElements5);
 
         allPanels.add(panel1);
         allPanels.add(panel2);
         allPanels.add(report);
         allPanels.add(leftPanel);
         allPanels.add(panel3);
+        allPanels.add(panel5);
 
         frame.add(leftPanel);
         frame.add(panel1);
         frame.add(panel2);
         frame.add(panel3);
         frame.add(report);
+        frame.add(panel5);
+        panel5.setVisible(false);
         panel2.setVisible(false);
         report.setVisible(false);
         panel3.setVisible(false);
+        panel1.setVisible(false);
+        leftPanel.setVisible(true);
+
+
+        updateBtn.addMouseListener(new MouseListener() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                //Update status and table
+                String newStatus = statusBox.getSelectedItem().toString();
+                int newRating = slider.getValue();
+
+                switch (newStatus) {
+                    case "Hired" :
+                        newStatus = "H";
+                        break;
+                    default:
+                        newStatus = "N";
+                        break;
+                }
+
+                //update the status if and only if the status is different than before
+                if (applicants.get(id - 6).getStatus() != newStatus.charAt(0)) {
+                    updateStatus(id, newStatus, 14);
+                    applicants.get(id - 6).setStatus(newStatus.charAt(0));
+                    if (newStatus.charAt(0) == 'H') {
+                        totalHiredApps++;
+                    } else {
+                        totalHiredApps--;
+                    }
+                    hiredCountText.setText(totalHiredApps + " out of " + applicants.size() + " have been hired.");
+                }
+                if (applicants.get(id - 6).getRating() != newRating) {
+                    updateStatus(id, String.valueOf(newRating), 15);
+                    applicants.get(id - 6).setRating(newRating);
+                }
+
+
+
+
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+
+            }
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                updateBtn.setBorder(new LineBorder(Color.BLACK));
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                updateBtn.setBorder(new LineBorder(Color.white));
+            }
+        });
+        pan2btn.addMouseListener(new MouseListener() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                char gender;
+
+                String genderStr = String.valueOf(genderCB.getSelectedItem());
+                switch (genderStr) {
+                    case "Male":
+                        gender = 'M';
+                        break;
+                    case "Any":
+                        gender = 'B';
+                        break;
+                    default:
+                        gender = 'N';
+                        break;
+                }
+
+                char role;
+                String roleStr = String.valueOf(rolesCB.getSelectedItem());
+                switch (roleStr) {
+                    case "FREC":
+                        role = 'F';
+                        break;
+                    case "Plant":
+                        role = 'P';
+                        break;
+                    case "Any":
+                        role = 'B';
+                        break;
+                    default:
+                        role = 'E';
+                        break;
+                }
+
+                char status;
+                String statusStr = String.valueOf(statusCB.getSelectedItem());
+                switch (statusStr) {
+                    case "Hired":
+                        status = 'H';
+                        break;
+                    case "Not Hired":
+                        status = 'N';
+                        break;
+                    default:
+                        status = 'E';
+                        break;
+                }
+
+
+                infoSummary(gender, role, status, applicants);
+                //Set a.status again.
+
+
+                panel5.setVisible(true);
+                panel2.setVisible(false);
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+
+            }
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                pan2btn.setBorder(new LineBorder(Color.BLACK));
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                pan2btn.setBorder(new LineBorder(Color.WHITE));
+            }
+        });
 
         searchBar.addFocusListener(new FocusListener() {
             @Override
             public void focusGained(FocusEvent e) {
                 //If you focus on text field:
-                if (searchBar.getText().equals("  enter a ski resort...")) {
+                if (searchBar.getText().equals("  first and last name...")) {
                     searchBar.setText("");
                 }
             }
@@ -474,8 +855,8 @@ public class Main {
             @Override
             public void focusLost(FocusEvent e) {
                 //If you do not focus on text field:
-                if (searchBar.getText().equals("  enter a ski resort...") || searchBar.getText().equals("")) {
-                    searchBar.setText("  enter a ski resort...");
+                if (searchBar.getText().equals("  first and last name...") || searchBar.getText().equals("")) {
+                    searchBar.setText("  first and last name...");
                 }
             }
         });
@@ -491,6 +872,8 @@ public class Main {
                 panel1.setVisible(true);
                 panel2.setVisible(false);
                 panel3.setVisible(false);
+                panel5.setVisible(false);
+                report.setVisible(false);
             }
 
             @Override
@@ -524,7 +907,11 @@ public class Main {
                 red3.setVisible(false);
                 panel1.setVisible(false);
                 panel2.setVisible(true);
+                panel5.setVisible(true);
                 panel3.setVisible(false);
+                panel5.setVisible(false);
+                report.setVisible(false);
+
             }
 
             @Override
@@ -559,6 +946,8 @@ public class Main {
                 panel1.setVisible(false);
                 panel2.setVisible(false);
                 panel3.setVisible(true);
+                panel5.setVisible(false);
+                report.setVisible(false);
             }
 
             @Override
@@ -591,48 +980,43 @@ public class Main {
                 panel1.setVisible(false);
                 panel2.setVisible(false);
                 panel3.setVisible(false);
+                panel5.setVisible(false);
                 report.setVisible(true);
-                resortName.setText(searchBar.getText());
+
+                String fullName = searchBar.getText();
+
+                StringBuilder tempFirst = new StringBuilder();
+                StringBuilder tempLast = new StringBuilder();
+                Boolean isFirst = true;
+
+                for (int i = 0; i < fullName.length(); i++) {
+                    if (fullName.charAt(i) == ' ') {
+                        isFirst = false;
+                        continue;
+                    }
+                    if (isFirst) {
+                        tempFirst.append(fullName.charAt(i));
+                    } else {
+                        tempLast.append(fullName.charAt(i));
+                    }
+                }
+
+                String firstName = tempFirst.toString().toLowerCase();
+                String lastName = tempLast.toString().toLowerCase();
+
+
+                System.out.println(firstName);
+                System.out.println(lastName);
+
+                searchApp(firstName, lastName, applicants);
                 //Adjust text that displays snow details
+
+
+
             }
             @Override
             public void mousePressed(MouseEvent e) {
 
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent e) {
-
-            }
-
-            @Override
-            public void mouseEntered(MouseEvent e) {
-
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-
-            }
-        });
-
-        //Favourite button mouse listener
-        favourite.addMouseListener(new MouseListener() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-
-                //Panel visibility
-                panel1.setVisible(false);
-                panel2.setVisible(false);
-                panel3.setVisible(false);
-                report.setVisible(true);
-
-
-
-            }
-
-            @Override
-            public void mousePressed(MouseEvent e) {
             }
 
             @Override
@@ -654,33 +1038,3 @@ public class Main {
     }
 
 }
-//ApplicantGroup grp = addApplicantGroup(groupID, numApplicants);
-
-//System.out.println(ReadExcel("Sheet1", 6, 1));
-
-
-/**
- * Takes in an Excel file containing a list of applicants and using Apache POI reads the whole thing
- * and returns the applicants in code.
- *
- * @param excelFile the file being read in
- * @return a collection of the applicants: kept as a collection in case it needs to be turned into a TreeSet
- */
-    /*
-    public String ReadExcel(String SheetName, int rNum, int cNum) {
-        String data = "";
-        try {
-            FileInputStrem fPath = new FileInputStream("https://queensuca-my.sharepoint.com/personal/22bmb7_queensu_ca/Documents/FREC.xlsx?web=1");//Put file path here, don't know how it will work with a shared file
-            Workbook wb = WorknookFactory.create(fPath);
-            Sheet s = wb.getSheet(SheetName);
-            Row r = s.getRow(rNum);
-            Cell c = r.getCell(cNum);
-            data = c.getStringCellValue();
-
-        } catch (Exception e) {
-            System.out.println("Read Exception catch");
-        }
-        return data; //Returns cell data at rNum and cNum
-    }
-
-     */
