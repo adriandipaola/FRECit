@@ -1,30 +1,19 @@
 import java.awt.*;
 import java.awt.Color;
-import java.awt.Font;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.TreeSet;
+import java.util.*;
+import java.util.List;
 import javax.swing.*;
 import javax.swing.border.LineBorder;
-
-//maybe change this * to the actual required classes to import; apparently it's "bad practice"
-import org.apache.poi.*;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.ss.util.CellReference;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-
-import javax.swing.*;
-import javax.swing.border.LineBorder;
 
 public class Main {
 
@@ -37,17 +26,9 @@ public class Main {
 
     static final java.awt.Color COOL_BLUE = new java.awt.Color(122, 30, 201);
 
-    static final java.awt.Color COOL_YELLOW = new java.awt.Color(255, 219, 51);
-
     static final java.awt.Color COOL_RED = new java.awt.Color(120, 101, 230);
     final static java.awt.Font largeTitleFont = new java.awt.Font("League Spartan", java.awt.Font.BOLD, 25);
     final static java.awt.Font smallTitleFont = new java.awt.Font("League Spartan", java.awt.Font.BOLD, 16);
-
-    final static java.awt.Font veryTitleFont = new java.awt.Font("League Spartan", Font.BOLD, 100);
-    public static int inc = 0;
-
-    static String userName;
-
 
     public static ArrayList<MyPanel> allPanels = new ArrayList<>();
 
@@ -61,59 +42,113 @@ public class Main {
 
     public static int id;
     public static int totalHiredApps;
-    /**
-     *
-     * @param //gender 'M' for male or 'N' for non-male, 'B' for both
-     * @param //role 'F' for FREC, 'P' for Plant, 'E' for either
-     * @return
-     */
+    public static HashMap<String, ApplicantGroup> applicantGroups;
+
+    public static JFrame frame = new JFrame("FRECit");
 
 
-    public static void createPanelGroups(FC[][] FCMembers) {
-        int[] groupValues = {0, 0, 0, 0, 0};
-        for (int i = 0; i < 5; i++) {
-            for (FC f : FCMembers[i]) {
-                groupValues[i] += f.getGenderValue();
+    
+    public static Boolean isNull (String sheet, int rNum, int cNum) {
+        boolean isnull = false;
+
+        try {
+            FileInputStream fPath = new FileInputStream("C:\\Users\\alexn\\Queen's University\\GROUP-FREC - General\\FREC-App-Info.xlsx");//Put file path here
+            Workbook wb = WorkbookFactory.create(fPath);
+            Sheet s = wb.getSheet(sheet);
+            Row r = s.getRow(rNum);
+            if (r.getCell(cNum) == null) {
+                return true;
+            } else {
+                return false;
             }
-            if (groupValues[i] == 3) {
-                //do something
+
+
+        } catch (Exception e) {
+            System.out.println("NO");
+        }
+        return true;
+    }
+    
+    public static FC[][] createPanelGroups(ArrayList<FC> FCMems, boolean isMade) {
+        FC groups[][] = new FC[5][3];
+        if (isMade) {
+            int[] indexes = {0, 0, 0, 0, 0};
+            for (FC fc : FCMems) {
+                int panelNum = (int) Double.parseDouble(readExcel("FC", fc.getRowOnSheet(), 2));
+                fc.setPanelNumber(panelNum);
+                groups[panelNum - 1][indexes[panelNum - 1]] = fc;
+                indexes[panelNum - 1]++;
             }
-            else if (groupValues[i] < 2) {
-                //do something else
-            }
+            return groups;
         }
 
 
+        List<FC> maleList = new ArrayList<>();
+        List<FC> nonmaleList = new ArrayList<>();
+
+        for (FC f : FCMems) {
+            char gender = f.getGender();
+            if (gender == 'M') {
+                maleList.add(f);
+            } else {
+                nonmaleList.add(f);
+            }
+        }
+
+        int cNum = 0;
+        int rNum = 0;
+        for (FC value : nonmaleList) {
+            groups[rNum][cNum] = value;
+            //set value at column C on the FC sheet to rNum
+            updateStatus(value.getRowOnSheet(), "" + (rNum + 1), 2, "FC");
+            rNum++;
+            if (rNum % 5 == 0) {
+                rNum = 0;
+                cNum++;
+            }
+
+        }
+
+        for (FC fc : maleList) {
+            groups[rNum][cNum] = fc;
+            updateStatus(fc.getRowOnSheet(), "" + (rNum + 1), 2, "FC");
+            rNum++;
+            if (rNum % 5 == 0) {
+                rNum = 0;
+                cNum++;
+            }
+        }
+
+        return groups;
     }
 
-
-
-    public static void updateStatus(int idNum, String newStatus, int cNum) {
+    public static void updateStatus(int rNum, String newStatus, int cNum, String sheet) {
         //Write to excel,
         //Re-update the table
-        int rNum = idNum - 5;
-        //int cNum = 14;
 
         try {
             FileInputStream fis = new FileInputStream("C:\\Users\\alexn\\Queen's University\\GROUP-FREC - General\\FREC-App-Info.xlsx");
             Workbook wb = WorkbookFactory.create(fis);
-            Sheet s = wb.getSheet("Sheet1");
+            Sheet s = wb.getSheet(sheet);
             Row r = s.getRow(rNum);
-            Cell c = r.createCell(cNum);
-            if (cNum == 14) {
-                c.setCellValue(newStatus);
-            } else {
-                c.setCellValue(Integer.valueOf(newStatus));
+            if (r == null) {
+                r = s.createRow(rNum);
             }
 
-            FileOutputStream fos = new FileOutputStream("C:\\Users\\alexn\\Queen's University\\GROUP-FREC - General\\FREC-App-Info.xlsx");
+            Cell c = r.createCell(cNum);
+            if (cNum == 15 && sheet.equals("Sheet1")){
+                c.setCellValue(Integer.valueOf(newStatus));
+            } else {
+                c.setCellValue(newStatus);
+            }
+
+                FileOutputStream fos = new FileOutputStream("C:\\Users\\alexn\\Queen's University\\GROUP-FREC - General\\FREC-App-Info.xlsx");
             wb.write(fos);
             wb.close();
         } catch (Exception e) {
             System.out.println("Read exception");
             e.printStackTrace();
         }
-        System.out.println("Write complete");
     }
 
 
@@ -150,7 +185,6 @@ public class Main {
         statusPane.setLayout(new FlowLayout());
 
         statusPane.setBounds(0, 0, WIDTH - 200, HEIGHT);
-        System.out.println("infoSummaryDone");
 
         JLabel stat = new JLabel("The status of the current applicant is: ");
 
@@ -185,7 +219,7 @@ public class Main {
         emptyBox.setPreferredSize(new Dimension(3000,0));
         statusPane.add(emptyBox);
 
-        JLabel rateText = new JLabel("The rating of the curent applicant is: ");
+        JLabel rateText = new JLabel("The rating of the current applicant is: ");
 
         slider.removeAll();
         slider.setMinimum(0);
@@ -211,7 +245,7 @@ public class Main {
 
         TreeSet<Applicant> filteredApps = new TreeSet<>();
         for (Applicant a : applicants) {
-            if ((gender == 'B' || gender == a.getGender()) && (role == a.getRole() || role == 'B') && (status == a.getStatus() || status == 'E')) {
+            if ((gender == 'B' || gender == a.getGender()) && (role == a.getRole() || role == 'E') && (status == a.getStatus() || status == 'E')) {
                 filteredApps.add(a);
             }
         }
@@ -232,7 +266,6 @@ public class Main {
         tablePane.setLayout(new FlowLayout());
 
         tablePane.setBounds(0, 0, WIDTH - 200, HEIGHT);
-        System.out.println("infoSummaryDone");
 
         int numApps = filteredAppsLength;
         JLabel num = new JLabel("Showing " + numApps + " out of " + applicants.size() + " applicants");
@@ -273,6 +306,87 @@ public class Main {
             e.printStackTrace();
             return null;
         }
+    }
+
+    public static JTable createSchedule(FC[][] panels, Queue<ApplicantGroup> appGrps, int amountOfDays) {
+        //Set up the Schedule sheet real quick!
+        FileInputStream fPath;
+        Workbook wb;
+        Sheet scheduleSheet = null;
+        int days = 4;
+        String columns[] = new String[16];
+        columns[0] = "";
+        String data[][] = new String[12*days][16];
+        try {
+            fPath = new FileInputStream("C:\\Users\\alexn\\Queen's University\\GROUP-FREC - General\\FREC-App-Info.xlsx");//Put file path here, don't know how it will work with a shared file
+            wb = WorkbookFactory.create(fPath);
+            scheduleSheet = wb.getSheet("Schedule");
+        } catch (FileNotFoundException e) {
+            System.out.println("lol");
+        } catch (IOException e) {
+            System.out.println("lol ioexception");
+        }
+        Row currentRow = scheduleSheet.createRow(0);
+        //go through the first row and print out all the FC member names
+        for (int i = 0; i < panels.length; i++) {
+            for (int j = 0; j < panels[i].length; j++) {
+                updateStatus(0, panels[i][j].getUsername(), i * 3 + j + 1, "Schedule");
+                columns[i*3 + j+1] = panels[i][j].getUsername();
+            }
+        }
+
+        //now go through the first column and print out all the times
+
+        for (int i = 0; i < amountOfDays; i++) {
+            currentRow = scheduleSheet.createRow(i * 11 + 1);
+            Cell c = currentRow.createCell(0);
+            updateStatus(i * 11 + 1, "Day " + (i + 1), 0, "Schedule");
+            data[i*11+1][0] = "Day " + (i + 1);
+            int time = 8;
+            for (int j = 0; j < 10; j++) {
+                currentRow = scheduleSheet.createRow(i * 11 + j + 2);
+                c = currentRow.createCell(0);
+                updateStatus(currentRow.getRowNum(), time + ":00", 0, "Schedule");
+                data[currentRow.getRowNum()][0] = time + ":00";
+                time++;
+            }
+        }
+
+
+
+        //first just make a simple algorithm in which 4 groups are interviewed per hr
+        //hr 1: panel 1 is on break, hr 2: panel 2 is on break, etc.
+        //maybe organize it by hour before splitting everything into days?
+        //account for a 1hr lunch break at 12 pm
+        int currentDay = 1; //stop when currentDay == amountOfDays
+        int currentHour = 8; //8 AM to 5 PM, so  8 - 17
+        int panelOnBreak = 0; //index pointing to the row of FC on break for that
+        ApplicantGroup currentAppGrp;
+        while (currentDay <= amountOfDays && !appGrps.isEmpty()) {
+            while (currentHour < 18) {
+                if (currentHour != 12) {
+                    for (int i = 0; i < 5; i++) {
+                        if (i != panelOnBreak) {
+                            currentAppGrp = appGrps.poll();
+                            if (currentAppGrp != null) {
+                                for (int j = 1; j < 4; j++) {
+                                    updateStatus((currentDay - 1) * 11 + (currentHour - 8) + 2, "" + currentAppGrp.getId(), (i * 3) + j, "Schedule");
+                                    data[(currentDay - 1) * 11 + (currentHour - 8) + 2][(i * 3) + j] = "" + currentAppGrp.getId();
+                                }
+                            }
+                        }
+                    }
+
+                    if (++panelOnBreak == 5) {
+                        panelOnBreak = 0;
+                    }
+                }
+                currentHour++;
+            }
+            currentHour = 8;
+            currentDay++;
+        }
+        return new JTable(data, columns);
     }
 
     public static Collection<Applicant> getApplicantsFromExcel(){
@@ -323,9 +437,28 @@ public class Main {
             applicants.add(new Applicant(applicantData[0], applicantData[1], applicantData[2], applicantData[3], applicantData[4], applicantData[5], applicantData[6], applicantData[7], newValue2, newValue));
             row++;
         }
+        //let's create groups of just individuals, rather than adding them on to existing groups
+        int individualGrpId = 0; //no way anyone's student # is this small
+        while (ungroupedApps.peek() != null) {
+            //create grps of 5 with leftover applicants
+            Applicant app = ungroupedApps.poll();
+            //check if there are no more applications
+            if (app == null) {
+                break;
+            }
+            ApplicantGroup individualsGrp = new ApplicantGroup(individualGrpId, app);
+            for (int i = 0; i < 4; i++) {
+                app = ungroupedApps.poll();
+                //check if there are no more applications here also
+                if (app == null) {
+                    break;
+                }
+                individualsGrp.addGrpMember(app);
+            }
+            applicantGroups.put("" + individualsGrp.getId(), individualsGrp);
+            individualGrpId++;
+        }
 
-
-        System.out.println("getApplicantsFromExcel Method finished");
         return applicants;
     }
 
@@ -345,7 +478,6 @@ public class Main {
             i++;
         }
         filteredAppsLength = appsToString.length;
-        System.out.println("applicantListToArray finished");
         return appsToString;
     }
 
@@ -415,11 +547,10 @@ public class Main {
 
         ArrayList<JComponent> menuElements = new ArrayList<>();
 
-
+        frameElements3.add(sPane);
 
         //MAIN JFRAME
-        JFrame frame = new JFrame("FRECit");
-        frame.setVisible(true);
+
         frame.setResizable(false);
         frame.setLocation(screenWidth / 4, screenHeight / 4);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -448,11 +579,6 @@ public class Main {
         home.setBounds(0, 85, 250, 50);
         home.setBackground(COOL_BLUE);
         menuElements.add(home);
-
-//        JLabel houseDisplay = new JLabel();//container for the image
-//        Dimension size = houseDisplay.getPreferredSize();
-//        //houseDisplay.setBackground(COOL_BLUE);
-//        houseDisplay.setBounds(24, 12, size.width, size.height);
         home.setName("HOME");
         home.setLayout(null);
         //home.add(houseDisplay);
@@ -620,24 +746,9 @@ public class Main {
         frameElements4.add(faveBox);
 
         //Settings stuff
-        JLabel settingLabel = new JLabel("Schedule");
-        settingLabel.setFont(largeTitleFont);
-        settingLabel.setForeground(COOL_BLUE);
-        JPanel settingPanel = new JPanel();
-        settingPanel.setBackground(java.awt.Color.WHITE);
-        settingPanel.setLayout(new GridBagLayout());
-        settingPanel.setBounds(0, 0, 200, 50);
-        settingPanel.add(settingLabel);
-        JPanel line4 = new JPanel();
-        line4.setBounds(11, 46, 178, 5);
-        line4.setBackground(COOL_RED);
-        frameElements3.add(line4);
-        frameElements3.add(settingPanel);
 
-        JPanel logPane = new JPanel();
-        logPane.setBounds(670, 550, 100, 50);
-        logPane.setBackground(java.awt.Color.white);
-        frameElements3.add(logPane);
+
+
 
         String genders[]={"Any","Male", "NonMale"};
         JComboBox genderCB = new JComboBox(genders);
@@ -679,6 +790,7 @@ public class Main {
         hiredCountText.setBounds(150, 360, hiredCountText.getPreferredSize().width + 50, hiredCountText.getPreferredSize().height);
         frameElements2.add(hiredCountText);
 
+
         MyPanel leftPanel = new MyPanel(-1, 0, 0, 200, HEIGHT, menuElements);
         MyPanel panel1 = new MyPanel(0, 200, 0, WIDTH - 200, HEIGHT, frameElements1);
         MyPanel panel2 = new MyPanel(1, 200, 0, WIDTH - 200, HEIGHT, frameElements2);
@@ -705,6 +817,7 @@ public class Main {
         panel3.setVisible(false);
         panel1.setVisible(false);
         leftPanel.setVisible(true);
+        frame.setVisible(false);
 
 
         updateBtn.addMouseListener(new MouseListener() {
@@ -738,8 +851,6 @@ public class Main {
                     updateStatus(id, String.valueOf(newRating), 15);
                     applicants.get(id - 6).setRating(newRating);
                 }
-
-
 
 
             }
@@ -792,10 +903,10 @@ public class Main {
                         role = 'P';
                         break;
                     case "Any":
-                        role = 'B';
+                        role = 'E';
                         break;
                     default:
-                        role = 'E';
+                        role = 'B';
                         break;
                 }
 
@@ -1005,11 +1116,9 @@ public class Main {
                 String lastName = tempLast.toString().toLowerCase();
 
 
-                System.out.println(firstName);
-                System.out.println(lastName);
-
                 searchApp(firstName, lastName, applicants);
                 //Adjust text that displays snow details
+
 
 
 

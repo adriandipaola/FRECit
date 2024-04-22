@@ -1,24 +1,26 @@
 public class FC {
     private char gender;
     private String username;
-    private int genderValue;
+    private int panelNumber;
+    private int rowOnSheet;
 
-    public FC (String username, char gender) {
+    public FC (String username, char gender, int rowOnSheet) {
         this.username = username;
         this.gender = gender;
-        if (gender == 'M') {
-            genderValue = 1;
-        } else {
-            genderValue = 0;
-        }
+        this.rowOnSheet = rowOnSheet;
     }
 
+    public void setPanelNumber(int panelNumber) {
+        this.panelNumber = panelNumber;
+    }
 
     public char getGender() {return gender;}
 
     public String getUsername() {return username;}
 
-    public int getGenderValue() {
-        return genderValue;
+    public int getRowOnSheet() {
+        return rowOnSheet;
     }
+
+
 }

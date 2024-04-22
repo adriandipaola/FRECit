@@ -8,13 +8,14 @@ public class Applicant implements Comparable<Applicant> { //this class might hav
     private String firstName;
     private String lastName;
     private String email;
-    private String studentNumber; //might have to be a string instead: what if student number starts w/ 0?
+    private String studentNumber;
     private String phoneNumber;
     private char gender;
     private char role;
     private char status;
     private int id;
     private int rating;
+    private String groupNumber;
 
     //TODO add whatever other fields are needed
 
@@ -77,6 +78,10 @@ public class Applicant implements Comparable<Applicant> { //this class might hav
     public void setRating(int rating) {this.rating = rating;}
 
     public int getId() { return id; }
+
+    public String getGroupNumber() {
+        return groupNumber;
+    }
 
     /**
      * Default comparison method: comparing applicants by last name
